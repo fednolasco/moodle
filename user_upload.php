@@ -88,44 +88,67 @@ class CSVToPostgres {
                             fwrite(STDOUT, "Column $csvCol not found in CSV \n");
                             throw new Exception("Column $csvCol not found in CSV");
                         }
-
-                        //Error Checking
-                        //echo "\ncolIndex: " . $colIndex;
-                        //echo "\nValue: " . $row[$colIndex];
                         
-                        if ($colIndex == 0) { // Name
-                            $temp = $row[$colIndex];
-                            echo "Before Name: " . $temp ."\n";
-                            $temp = ucfirst(strtolower(trim($temp)));
-                            echo "After Name: " . $temp ."\n";
-                        } else if ($colIndex == 1) { // Surname
-                            $temp = $row[$colIndex];
-                            echo "Before Surname: " . $temp ."\n";
-                            $temp = ucfirst(strtolower(trim($temp)));
-                            echo "After Surname: " . $temp ."\n";
-                        } else { // Email
-                            $temp = $row[$colIndex];
-                            echo "Before Email: " . $temp ."\n";
-                            $temp = strtolower(trim($temp));
-                            echo "After Email: " . $temp ."\n";
-
-                                if (filter_var($temp, FILTER_VALIDATE_EMAIL)){
-                                    echo "Valid Email\n";
-                                }   else {
-                                    echo "Invalid Email\n";
-                                }
-                            
-                        }
-
                         $values[] = $row[$colIndex] ?? null;
+                    
+                    }
 
+                    // Get trimmed values
+                    $name = trim($values[0]);
+                    $surname = trim($values[1]);
+                    $email = trim($values[2]);
+                    
+                    $booEmailValid = FALSE;
+
+                    // Validations
+                    // 1. Check if email is valid
+                    // 2. If valid, continue cleansing 'name' & 'surname'
+                    if (filter_var($email, FILTER_VALIDATE_EMAIL)){
+                        echo "Valid Email.\n";
+                        $booEmailValid = TRUE;
+
+                        // 'name' cleansing
+                        $name = ucfirst(strtolower($name));
+                        array_splice($values,0,1,$name);
+                        
+                        // 'surname' cleansing
+                        $surname = ucfirst(strtolower($surname));
+                        array_splice($values,1,1,$surname);
+
+                    } else {
+                        echo "Invalid Email.\n";
                     }
                     
+                    echo "Array contents: " . print_r($values) . "\n";
 
+                    // Check if Email already exist
+                    $booEmailExist = FALSE;
+                    try {
+                        $checkStmt = $this->pdo->prepare("SELECT email FROM usertest WHERE email = :email");
+                        $checkStmt->execute([':email' => $email]);
+                        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
-                    // Execute insert
-                    //$stmt->execute($values);
-                    $stats['successful_inserts']++;
+                        if ($existing) {
+                            //$this.pdo->rollBack();
+
+                            if ($existing['email'] === $email) {
+                                $booEmailExist = TRUE;
+                            }
+                            
+                        }
+                    } catch (PDOException $e) {
+                        fwrite(STDOUT, "Database error occured: " . $e->getMessage() . "\n");
+                    }
+
+                    // If passed Validations, do insert
+                    if ($booEmailValid == TRUE AND $booEmailExist == FALSE) {
+                        echo "Inserted!\n";
+                        $stmt->execute($values);
+                        $stats['successful_inserts']++;
+                    } else {
+                        echo "Not Inserted!\n";
+                        $stats['failed_inserts']++;
+                    }
                     
                 } catch (Exception $e) {
                     $stats['failed_inserts']++;
@@ -172,6 +195,7 @@ try {
         $config['dbname'],
         $config['user'],
         $config['password'],
+        //'users',  // table name
         'usertest',  // table name
         $columnMap
     );
