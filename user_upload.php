@@ -104,7 +104,7 @@ class CSVToPostgres {
                     // 1. Check if email is valid
                     // 2. If valid, continue cleansing 'name' & 'surname'
                     if (filter_var($email, FILTER_VALIDATE_EMAIL)){
-                        echo "Valid Email.\n";
+                        //echo "Valid Email.\n";
                         $booEmailValid = TRUE;
 
                         // 'name' cleansing
@@ -116,7 +116,7 @@ class CSVToPostgres {
                         array_splice($values,1,1,$surname);
 
                     } else {
-                        echo "Invalid Email.\n";
+                        //echo "Invalid Email.\n";
                     }
                     
                     echo "Array contents: " . print_r($values) . "\n";
@@ -146,7 +146,12 @@ class CSVToPostgres {
                         $stmt->execute($values);
                         $stats['successful_inserts']++;
                     } else {
-                        echo "Not Inserted!\n";
+                        if ($booEmailValid == FALSE){
+                            echo "Not Inserted: Invalid email.\n";
+                        }
+                        if ($booEmailExist == TRUE){
+                            echo "Not Inserted: Email already exist.\n";
+                        }
                         $stats['failed_inserts']++;
                     }
                     
