@@ -1,10 +1,16 @@
 <?php
 
+// Redirect errors to STDOUT
+ini_set('error_log', '/dev/stdout');
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 class CSVToPostgres {
+
     private $pdo;
     private $tableName;
     private $columnMap;
-    
+        
     /**
      * Constructor to initialize database connection
      * @param string $host PostgreSQL host
@@ -25,7 +31,8 @@ class CSVToPostgres {
             $this->tableName = $tableName;
             $this->columnMap = $columnMap;
         } catch (PDOException $e) {
-            die("Connection failed: " . $e->getMessage());
+            fwrite(STDOUT, "Connection failed: " . $e->getMessage() . "\n");
+            exit(1);
         }
     }
     
@@ -37,6 +44,7 @@ class CSVToPostgres {
      */
     public function importCSV($csvFile, $delimiter = ',') {
         if (!file_exists($csvFile)) {
+            fwrite(STDOUT, "CSV file not found: " . $csvFile . "\n");
             throw new Exception("CSV file not found: $csvFile");
         }
         
@@ -56,6 +64,7 @@ class CSVToPostgres {
             // Read and validate headers
             $headers = fgetcsv($handle, 0, $delimiter);
             if ($headers === false) {
+                fwrite(STDOUT, "Failed to read CSV headers: " . $headers . "\n");
                 throw new Exception("Failed to read CSV headers");
             }
             
@@ -76,6 +85,7 @@ class CSVToPostgres {
                     foreach ($this->columnMap as $csvCol => $dbCol) {
                         $colIndex = array_search($csvCol, $headers);
                         if ($colIndex === false) {
+                            fwrite(STDOUT, "Column $csvCol not found in CSV \n");
                             throw new Exception("Column $csvCol not found in CSV");
                         }
 
@@ -120,6 +130,9 @@ class CSVToPostgres {
                 } catch (Exception $e) {
                     $stats['failed_inserts']++;
                     $stats['errors'][] = "Row {$stats['total_rows']}: " . $e->getMessage();
+                    
+                    fwrite(STDOUT, "Failed inserts: " . $e->getMessage() . "\n");
+
                 }
             }
             
@@ -128,6 +141,7 @@ class CSVToPostgres {
             
         } catch (Exception $e) {
             $this->pdo->rollBack();
+            fwrite(STDOUT, "Import failed: " . $e->getMessage() . "\n");
             throw new Exception("Import failed: " . $e->getMessage());
         }
         
@@ -179,6 +193,7 @@ try {
     }
     
 } catch (Exception $e) {
+    fwrite(STDOUT, "Error: " . $e->getMessage() . "\n");
     echo "Error: " . $e->getMessage() . "\n";
 }
 ?>

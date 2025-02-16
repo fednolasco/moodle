@@ -1,5 +1,10 @@
 <?php
 
+// Redirect errors to STDOUT
+ini_set('error_log', '/dev/stdout');
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 class PostgresTableCreator {
     private $pdo;
     
@@ -12,7 +17,8 @@ class PostgresTableCreator {
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
             );
         } catch (PDOException $e) {
-            die("Connection failed: " . $e->getMessage());
+            fwrite(STDOUT, "Connection failed: " . $e->getMessage() . "\n");
+            exit(1);
         }
     }
     
@@ -24,7 +30,8 @@ class PostgresTableCreator {
             $this->pdo->exec($sql);
             return true;
         } catch (PDOException $e) {
-            throw new Exception("Table creation failed: " . $e->getMessage());
+            fwrite(STDOUT, "Table Creation Error: " . $e->getMessage() . "\n");
+            return false;
         }
     }
     
@@ -55,15 +62,25 @@ class PostgresTableCreator {
      * Check if a table exists
      */
     public function tableExists($tableName) {
-        $stmt = $this->pdo->prepare(
-            "SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_name = ?
-            )"
-        );
-        $stmt->execute([$tableName]);
-        return $stmt->fetchColumn();
-    }
+        try{
+            $stmt = $this->pdo->prepare(
+                "SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = ?
+                )"
+            );
+            $stmt->execute([$tableName]);
+            $exists = $stmt->fetchColumn();
+            
+            fwrite(STDOUT, "Table '$tableName' " . 
+                ($exists ? "exists" : "does not exist") . "\n");
+            return $exists;
+        
+        } catch (PDOException $e) {
+            fwrite(STDOUT, "Check Table Error: " . $e->getMessage() . "\n");
+            return false;
+        }
+    } 
     
     /**
      * Drop a table if it exists
@@ -73,7 +90,8 @@ class PostgresTableCreator {
             $this->pdo->exec("DROP TABLE IF EXISTS $tableName CASCADE");
             return true;
         } catch (PDOException $e) {
-            throw new Exception("Failed to drop table: " . $e->getMessage());
+            fwrite(STDOUT, "Failed to drop table: " . $e->getMessage() . "\n");
+            return false;
         }
     }
 }
@@ -134,9 +152,9 @@ try {
     $creator->createTableFromSchema('orders', $orderColumns, $orderConstraints);
     */
 
-    echo "Tables created successfully!\n";
+    echo "Table(s) created successfully!\n";
     
 } catch (Exception $e) {
-    echo "Error: " . $e->getMessage() . "\n";
+    fwrite(STDOUT, "Error in creating table(s): " . $e->getMessage() . "\n");
 }
 ?>
