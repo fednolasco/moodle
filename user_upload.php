@@ -201,7 +201,7 @@ try {
         $config['user'],
         $config['password'],
         //'users',  // table name
-        'usertest',  // table name
+        'users',  // table name
         $columnMap
     );
     
