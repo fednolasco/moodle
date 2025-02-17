@@ -85,13 +85,17 @@ class CSVToPostgres {
                     foreach ($this->columnMap as $csvCol => $dbCol) {
                         $colIndex = array_search($csvCol, $headers);
                         if ($colIndex === false) {
+                            
                             fwrite(STDOUT, "Column $csvCol not found in CSV \n");
                             throw new Exception("Column $csvCol not found in CSV");
+
                         }
                         
                         $values[] = $row[$colIndex] ?? null;
                     
                     }
+
+                    // START Validations
 
                     // Get trimmed values
                     $name = trim($values[0]);
@@ -100,52 +104,68 @@ class CSVToPostgres {
                     
                     $booEmailValid = FALSE;
 
-                    // Validations
-                    // 1. Check if email is valid
-                    // 2. If valid, continue cleansing 'name' & 'surname'
-                    if (filter_var($email, FILTER_VALIDATE_EMAIL)){
+                    // 1. Check if email format is valid
+                    // 2. Check if there are invalid characters in email
+                    // 3. If valid, continue cleansing 'name' & 'surname'
+                    if (filter_var($email, FILTER_VALIDATE_EMAIL) 
+                            AND !str_contains($email,'!')
+                            AND !str_contains($email,'\'')) {
+                        
                         //echo "Valid Email.\n";
                         $booEmailValid = TRUE;
 
                         // 'name' cleansing
                         $name = ucfirst(strtolower($name));
-                        array_splice($values,0,1,$name);
                         
                         // 'surname' cleansing
-                        $surname = ucfirst(strtolower($surname));
-                        array_splice($values,1,1,$surname);
+                        // Retain the original surname if there is an apostrophe (e.g. O'Hare)
+                        if (!str_contains($surname,'\'')) {
+                            $surname = ucfirst(strtolower($surname));
+                        } else {
+                            $surname = ucfirst($surname);
+                        }
 
-                    } else {
-                        //echo "Invalid Email.\n";
+                        // Swap the values in the same position in the array
+                        array_splice($values,0,1,$name);
+                        array_splice($values,1,1,$surname);
+                        
+                    //} else {
+                    //    echo "Invalid Email.\n";
                     }
                     
-                    echo "Array contents: " . print_r($values) . "\n";
+                    //echo "Array contents: " . print_r($values) . "\n";
 
                     // Check if Email already exist
                     $booEmailExist = FALSE;
                     try {
-                        $checkStmt = $this->pdo->prepare("SELECT email FROM usertest WHERE email = :email");
+
+                        $checkStmt = $this->pdo->prepare("SELECT email FROM $this->tableName WHERE email = :email");
                         $checkStmt->execute([':email' => $email]);
                         $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
                         if ($existing) {
-                            //$this.pdo->rollBack();
 
+                            //$this.pdo->rollBack();
                             if ($existing['email'] === $email) {
                                 $booEmailExist = TRUE;
                             }
                             
                         }
+
                     } catch (PDOException $e) {
                         fwrite(STDOUT, "Database error occured: " . $e->getMessage() . "\n");
                     }
+                    // END Validations
 
                     // If passed Validations, do insert
                     if ($booEmailValid == TRUE AND $booEmailExist == FALSE) {
+
                         echo "Inserted!\n";
                         $stmt->execute($values);
                         $stats['successful_inserts']++;
+
                     } else {
+
                         if ($booEmailValid == FALSE){
                             echo "Not Inserted: Invalid email.\n";
                         }
@@ -153,15 +173,18 @@ class CSVToPostgres {
                             echo "Not Inserted: Email already exist.\n";
                         }
                         $stats['failed_inserts']++;
+
                     }
                     
                 } catch (Exception $e) {
+
                     $stats['failed_inserts']++;
                     $stats['errors'][] = "Row {$stats['total_rows']}: " . $e->getMessage();
                     
                     fwrite(STDOUT, "Failed inserts: " . $e->getMessage() . "\n");
 
                 }
+
             }
             
             fclose($handle);
@@ -200,8 +223,8 @@ try {
         $config['dbname'],
         $config['user'],
         $config['password'],
-        //'users',  // table name
-        'users',  // table name
+        'users', // table name
+        //'usertest', // test environment
         $columnMap
     );
     
