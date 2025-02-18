@@ -81,6 +81,7 @@ class DatabaseManager {
             );
             echo "Connected to PostgreSQL successfully!\n";
         } catch (PDOException $e) {
+            fwrite(STDOUT, "Connection failed: " . $e->getMessage() . "\n");
             die("Connection failed: " . $e->getMessage() . "\n");
         }
     }
@@ -148,6 +149,7 @@ class DatabaseManager {
             echo "Table '$tableName' created successfully!\n";
 
         } catch (PDOException $e) {
+            fwrite(STDOUT, "Error creating table: " . $e->getMessage() . "\n");
             die("Error creating table: " . $e->getMessage() . "\n");
         }
     }
@@ -164,6 +166,7 @@ try {
     $manager = new DatabaseManager();
     $manager->createTable();
 } catch (Exception $e) {
+    fwrite(STDOUT, "Error: " . $e->getMessage() . "\n");
     die("Error: " . $e->getMessage() . "\n");
 }
 ?>

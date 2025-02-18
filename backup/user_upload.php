@@ -174,17 +174,17 @@ class CSVToPostgres {
                     // If passed Validations, do insert
                     if ($booEmailValid == TRUE AND $booEmailExist == FALSE) {
 
-                        echo $name." ".$surname." was added to table $this->tableName!\n";
+                        echo "Inserted!\n";
                         $stmt->execute($values);
                         $stats['successful_inserts']++;
 
                     } else {
 
                         if ($booEmailValid == FALSE){
-                            echo $name." ".$surname." was not added: Invalid email.\n";
+                            echo "Not Inserted: Invalid email.\n";
                         }
                         if ($booEmailExist == TRUE){
-                            echo $name." ".$surname." was not added: Email already exist.\n";
+                            echo "Not Inserted: Email already exist.\n";
                         }
                         $stats['failed_inserts']++;
 
